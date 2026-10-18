@@ -1,0 +1,37 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Maven / Java Build Artifacts
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+backend/target/
+
+# Node / Frontend Build Artifacts
+**/node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+.npm
+*.tsbuildinfo
+
+# IDE & Editor Files
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment Variables & Logs
+*.log
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
