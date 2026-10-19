@@ -81,12 +81,16 @@ export default function AuthLoginPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">
-              <span>Password</span>
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label className="form-label" style={{ marginBottom: 0 }}>Password</label>
+              <Link to="/reset-password" style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               className="form-input"
+              style={{ marginTop: '0.4rem' }}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

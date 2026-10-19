@@ -11,11 +11,16 @@ import com.foodrescue.rating.entity.Report;
 import com.foodrescue.rating.repository.ReportRepository;
 import com.foodrescue.user.entity.User;
 import com.foodrescue.user.repository.UserRepository;
+import com.foodrescue.auth.dto.AuthDtos.RegisterAdminRequest;
+import com.foodrescue.user.entity.Role;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -33,17 +38,20 @@ public class AdminController {
     private final AuditLogRepository auditLogRepository;
     private final NotificationRepository notificationRepository;
     private final com.foodrescue.listing.service.ListingService listingService;
+    private final PasswordEncoder passwordEncoder;
 
     public AdminController(UserRepository userRepository,
                            ReportRepository reportRepository,
                            AuditLogRepository auditLogRepository,
                            NotificationRepository notificationRepository,
-                           com.foodrescue.listing.service.ListingService listingService) {
+                           com.foodrescue.listing.service.ListingService listingService,
+                           PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.reportRepository = reportRepository;
         this.auditLogRepository = auditLogRepository;
         this.notificationRepository = notificationRepository;
         this.listingService = listingService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping("/verifications")
@@ -224,5 +232,47 @@ public class AdminController {
 
         auditLogRepository.save(new AuditLog(admin.getName(), "UPDATED_USER_STATUS", "Updated status of user #" + id + " (" + user.getName() + ")"));
         return ResponseEntity.ok(Map.of("message", "User status updated successfully"));
+    }
+
+    @PostMapping("/register-admin")
+    @Operation(summary = "Register a new platform administrator")
+    public ResponseEntity<Map<String, Object>> registerAdmin(
+            @AuthenticationPrincipal UserPrincipal admin,
+            @Valid @RequestBody RegisterAdminRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new BadRequestException("An account with email " + request.getEmail() + " already exists.");
+        }
+
+        User newAdmin = new User(
+                request.getName(),
+                request.getEmail(),
+                request.getPhone(),
+                passwordEncoder.encode(request.getPassword()),
+                Role.ADMIN,
+                true
+        );
+
+        newAdmin.setCity(request.getCity() != null && !request.getCity().isBlank() ? request.getCity() : "New Delhi");
+        newAdmin.setVerificationStatus("APPROVED");
+
+        User saved = userRepository.save(newAdmin);
+
+        auditLogRepository.save(new AuditLog(
+                admin.getName(),
+                "REGISTERED_ADMIN",
+                "Admin " + admin.getName() + " registered new platform administrator: " + saved.getName() + " (" + saved.getEmail() + ")"
+        ));
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("message", "New platform administrator registered successfully.");
+        result.put("id", saved.getId());
+        result.put("name", saved.getName());
+        result.put("email", saved.getEmail());
+        result.put("phone", saved.getPhone());
+        result.put("role", saved.getRole());
+        result.put("createdAt", saved.getCreatedAt());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 }

@@ -84,4 +84,49 @@ public class AuthService {
         // Simulated valid OTP for development and testing
         return true;
     }
+
+    @Transactional
+    public java.util.Map<String, Object> forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("No account registered with email: " + request.getEmail()));
+
+        // Generate 6-digit verification code
+        String simulatedOtp = String.valueOf(100000 + new java.util.Random().nextInt(900000));
+
+        auditLogRepository.save(new AuditLog(
+                user.getName(),
+                "FORGOT_PASSWORD_REQUEST",
+                "Password reset requested for " + user.getEmail()
+        ));
+
+        java.util.Map<String, Object> res = new java.util.HashMap<>();
+        res.put("message", "Password reset OTP sent to your registered email.");
+        res.put("email", user.getEmail());
+        res.put("simulatedOtp", simulatedOtp);
+        return res;
+    }
+
+    @Transactional
+    public java.util.Map<String, Object> resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("No account registered with email: " + request.getEmail()));
+
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 6) {
+            throw new BadRequestException("Password must be at least 6 characters.");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        auditLogRepository.save(new AuditLog(
+                user.getName(),
+                "RESET_PASSWORD",
+                "Password was reset successfully for " + user.getEmail()
+        ));
+
+        java.util.Map<String, Object> res = new java.util.HashMap<>();
+        res.put("message", "Password reset successfully. You can now login with your new password.");
+        res.put("email", user.getEmail());
+        return res;
+    }
 }

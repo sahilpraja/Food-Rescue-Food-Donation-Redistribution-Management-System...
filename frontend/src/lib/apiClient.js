@@ -66,6 +66,20 @@ class ApiClient {
     return res;
   }
 
+  async forgotPassword(email) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  }
+
+  async resetPassword(email, otp, newPassword) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, newPassword })
+    });
+  }
+
   // Listings endpoints
   async getAllListings(params = {}) {
     const query = new URLSearchParams(params).toString();
@@ -264,6 +278,13 @@ class ApiClient {
   async updateAdminUserStatus(id, data) {
     return this.request(`/admin/users/${id}/status`, {
       method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async registerAdmin(data) {
+    return this.request('/admin/register-admin', {
+      method: 'POST',
       body: JSON.stringify(data)
     });
   }

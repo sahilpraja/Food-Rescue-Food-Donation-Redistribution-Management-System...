@@ -207,6 +207,103 @@ export function AppProvider({ children }) {
     return { success: false, error: 'Invalid email or password.' };
   }, [syncFromBackend]);
 
+  const forgotPassword = useCallback(async (email) => {
+    try {
+      const res = await apiClient.forgotPassword(email.trim());
+      return { success: true, ...res };
+    } catch (err) {
+      // Offline fallback: check local storage users
+      const users = storageService.getUsers();
+      const match = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
+      if (match) {
+        const simulatedOtp = String(Math.floor(100000 + Math.random() * 900000));
+        return {
+          success: true,
+          message: 'Password reset OTP sent to your email.',
+          simulatedOtp
+        };
+      }
+      return { success: false, error: err.message || 'No account registered with this email address.' };
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (email, otp, newPassword) => {
+    try {
+      const res = await apiClient.resetPassword(email.trim(), otp.trim(), newPassword);
+      // Also update in localStorage cache
+      const currentUsers = storageService.getUsers();
+      const idx = currentUsers.findIndex(u => u.email.toLowerCase() === email.trim().toLowerCase());
+      if (idx >= 0) {
+        currentUsers[idx].password = newPassword;
+        localStorage.setItem('foodrescue_users_v1', JSON.stringify(currentUsers));
+      }
+      return { success: true, ...res };
+    } catch (err) {
+      // Offline fallback
+      const currentUsers = storageService.getUsers();
+      const idx = currentUsers.findIndex(u => u.email.toLowerCase() === email.trim().toLowerCase());
+      if (idx >= 0) {
+        currentUsers[idx].password = newPassword;
+        localStorage.setItem('foodrescue_users_v1', JSON.stringify(currentUsers));
+        return {
+          success: true,
+          message: 'Password reset successfully. You can now login with your new password.'
+        };
+      }
+      return { success: false, error: err.message || 'Failed to reset password.' };
+    }
+  }, []);
+
+  const registerAdmin = useCallback(async (adminData) => {
+    try {
+      const res = await apiClient.registerAdmin(adminData);
+      // Sync to local storage users
+      const currentUsers = storageService.getUsers();
+      const newAdminUser = {
+        id: res.id ? String(res.id) : `usr_admin_${Date.now()}`,
+        name: adminData.name,
+        email: adminData.email,
+        phone: adminData.phone,
+        role: 'ADMIN',
+        type: 'Platform Administrator',
+        verified: true,
+        verificationStatus: 'APPROVED',
+        city: adminData.city || 'New Delhi',
+        rating: 5.0,
+        ratingCount: 1,
+        password: adminData.password
+      };
+      currentUsers.push(newAdminUser);
+      localStorage.setItem('foodrescue_users_v1', JSON.stringify(currentUsers));
+      refreshLocalState();
+      return { success: true, user: newAdminUser, message: res.message || 'New administrator registered successfully.' };
+    } catch (err) {
+      // Offline fallback
+      const currentUsers = storageService.getUsers();
+      if (currentUsers.some(u => u.email.toLowerCase() === adminData.email.trim().toLowerCase())) {
+        return { success: false, error: `An account with email ${adminData.email} already exists.` };
+      }
+      const newAdminUser = {
+        id: `usr_admin_${Date.now()}`,
+        name: adminData.name,
+        email: adminData.email,
+        phone: adminData.phone,
+        role: 'ADMIN',
+        type: 'Platform Administrator',
+        verified: true,
+        verificationStatus: 'APPROVED',
+        city: adminData.city || 'New Delhi',
+        rating: 5.0,
+        ratingCount: 1,
+        password: adminData.password
+      };
+      currentUsers.push(newAdminUser);
+      localStorage.setItem('foodrescue_users_v1', JSON.stringify(currentUsers));
+      refreshLocalState();
+      return { success: true, user: newAdminUser, message: 'New administrator registered successfully.' };
+    }
+  }, [refreshLocalState]);
+
   const switchRole = useCallback(async (role) => {
     storageService.switchRole(role);
     const user = storageService.getCurrentUser();
@@ -224,6 +321,9 @@ export function AppProvider({ children }) {
       setCurrentUser(u);
     },
     login,
+    forgotPassword,
+    resetPassword,
+    registerAdmin,
     logout: () => {
       apiClient.setToken(null);
       storageService.logout();

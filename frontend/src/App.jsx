@@ -13,6 +13,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import ProfilePage from './pages/ProfilePage';
 import AuthLoginPage from './pages/AuthLoginPage';
 import AuthRegisterPage from './pages/AuthRegisterPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 // Donor Pages
 import DonorDashboard from './pages/donor/DonorDashboard';
@@ -53,6 +54,7 @@ export default function App() {
               <Route path="/impact" element={<ImpactPage />} />
               <Route path="/login" element={<AuthLoginPage />} />
               <Route path="/register" element={<AuthRegisterPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
 

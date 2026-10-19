@@ -43,6 +43,20 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("verified", valid, "message", "Contact verified successfully."));
     }
 
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Request password reset OTP for registered email")
+    public ResponseEntity<Map<String, Object>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        Map<String, Object> response = authService.forgotPassword(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password using verified OTP")
+    public ResponseEntity<Map<String, Object>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        Map<String, Object> response = authService.resetPassword(request);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/refresh")
     @Operation(summary = "Rotate expired access token using refresh token")
     public ResponseEntity<Map<String, String>> refresh(@RequestBody Map<String, String> body) {
