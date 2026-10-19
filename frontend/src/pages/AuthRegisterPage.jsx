@@ -1,28 +1,24 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import {
   UtensilsCrossed,
   HeartHandshake,
   Truck,
-  ShieldCheck,
   CheckCircle2,
+  ShieldCheck,
   FileText,
   KeyRound,
-  ArrowRight,
-  Lock
+  ArrowRight
 } from 'lucide-react';
-import GoogleAuthButton from '../components/GoogleAuthButton';
+import { storageService } from '../lib/storageService';
 
 export default function AuthRegisterPage() {
-  const { register, googleAuth, showToast } = useApp();
+  const { setCurrentUser, showToast } = useApp();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-
-  const initialRole = searchParams.get('role')?.toUpperCase() || 'DONOR';
 
   const [step, setStep] = useState(1); // 1: Info, 2: OTP
-  const [role, setRole] = useState(['DONOR', 'NGO', 'VOLUNTEER', 'ADMIN'].includes(initialRole) ? initialRole : 'DONOR');
+  const [role, setRole] = useState('DONOR');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -30,94 +26,58 @@ export default function AuthRegisterPage() {
   const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [regNumber, setRegNumber] = useState('');
-  const [adminSecret, setAdminSecret] = useState('');
   const [enteredOtp, setEnteredOtp] = useState('');
   const [simulatedOtp, setSimulatedOtp] = useState('482910');
-  const [submitting, setSubmitting] = useState(false);
 
   const handleStep1Submit = (e) => {
     e.preventDefault();
-    if (!name || !email || !phone || !password) {
-      showToast('Please fill in all mandatory fields.', 'danger');
-      return;
-    }
-
-    if (role === 'ADMIN' && !adminSecret.trim()) {
-      showToast('Admin Security Passcode is required to register an administrator account.', 'danger');
-      return;
-    }
-
+    if (!name || !email || !phone) return;
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setSimulatedOtp(code);
     setStep(2);
     showToast(`Verification code sent to ${phone}: ${code}`, 'info');
   };
 
-  const handleGoogleAuth = async (googleData) => {
-    if (role === 'ADMIN' && !adminSecret.trim()) {
-      showToast('Please enter the Admin Security Passcode below before signing up with Google as Admin.', 'danger');
-      return;
-    }
-
-    setSubmitting(true);
-    const result = await googleAuth({
-      ...googleData,
-      role,
-      adminSecret: role === 'ADMIN' ? adminSecret.trim() : undefined,
-      phone: phone || '+91 98000 00000'
-    });
-    setSubmitting(false);
-
-    if (result.success) {
-      const user = result.user;
-      showToast(`Welcome to Food Rescue, ${user.name}!`, 'success');
-      if (user.role === 'DONOR') navigate('/donor/dashboard');
-      else if (user.role === 'NGO') navigate('/ngo/discover');
-      else if (user.role === 'VOLUNTEER') navigate('/volunteer/tasks');
-      else if (user.role === 'ADMIN') navigate('/admin/overview');
-      else navigate('/');
-    } else {
-      showToast(result.error || 'Google registration failed.', 'danger');
-    }
-  };
-
-  const handleOtpVerify = async (e) => {
+  const handleOtpVerify = (e) => {
     e.preventDefault();
     if (enteredOtp.trim() !== simulatedOtp) {
       showToast('Incorrect OTP. Try the simulated code shown above.', 'danger');
       return;
     }
 
-    setSubmitting(true);
-    const result = await register({
+    // Determine verification state based on role
+    const needsAdminApproval = role === 'NGO';
+    const newUser = {
+      id: `usr_${Date.now()}`,
       name,
       email,
       phone,
-      password,
       role,
-      addressLine: address,
+      type: role === 'DONOR' ? 'Food Donor' : role === 'NGO' ? 'NGO Shelter' : 'Volunteer Courier',
+      verified: !needsAdminApproval,
+      verificationStatus: needsAdminApproval ? 'PENDING' : 'APPROVED',
       city,
+      address,
       darpanRegNo: role === 'NGO' ? regNumber : undefined,
       fssaiLicense: role === 'DONOR' ? regNumber : undefined,
-      adminSecret: role === 'ADMIN' ? adminSecret.trim() : undefined
-    });
-    setSubmitting(false);
+      rating: 5.0,
+      ratingCount: 1
+    };
 
-    if (result.success) {
-      const user = result.user;
-      showToast(`Account registered and verified! Welcome, ${user.name}.`, 'success');
-      if (user.role === 'DONOR') navigate('/donor/dashboard');
-      else if (user.role === 'NGO') navigate('/ngo/discover');
-      else if (user.role === 'VOLUNTEER') navigate('/volunteer/tasks');
-      else if (user.role === 'ADMIN') navigate('/admin/overview');
-      else navigate('/');
-    } else {
-      showToast(result.error || 'Registration failed. Please check your credentials.', 'danger');
-    }
+    const users = storageService.getUsers();
+    users.push(newUser);
+    localStorage.setItem('foodrescue_users_v1', JSON.stringify(users));
+
+    setCurrentUser(newUser);
+    showToast(`Account registered and verified! Welcome, ${newUser.name}.`, 'success');
+
+    if (role === 'DONOR') navigate('/donor/dashboard');
+    else if (role === 'NGO') navigate('/ngo/discover');
+    else navigate('/volunteer/tasks');
   };
 
   return (
-    <div style={{ maxWidth: '680px', margin: '2rem auto 4rem', padding: '0 1.25rem' }}>
+    <div style={{ maxWidth: '640px', margin: '2rem auto 4rem', padding: '0 1.25rem' }}>
       <div className="card" style={{ padding: '2rem' }}>
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>
@@ -127,16 +87,16 @@ export default function AuthRegisterPage() {
             Register as a Partner
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Step {step} of 2: {step === 1 ? 'Organization & Account Details' : 'Contact OTP Verification (FR-AUTH-02)'}
+            Step {step} of 2: {step === 1 ? 'Organization Details' : 'Contact OTP Verification (FR-AUTH-02)'}
           </p>
         </div>
 
         {step === 1 ? (
-          <div>
+          <form onSubmit={handleStep1Submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {/* Role Selection */}
-            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <div className="form-group">
               <label className="form-label">Select Your Role *</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.65rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(140px, 100%), 1fr))', gap: '0.75rem' }}>
                 <label
                   style={{
                     display: 'flex',
@@ -160,7 +120,7 @@ export default function AuthRegisterPage() {
                     style={{ display: 'none' }}
                   />
                   <UtensilsCrossed size={22} style={{ color: 'var(--primary-dark)' }} />
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Food Donor</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Food Donor</span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Restaurant / Hotel</span>
                 </label>
 
@@ -187,7 +147,7 @@ export default function AuthRegisterPage() {
                     style={{ display: 'none' }}
                   />
                   <HeartHandshake size={22} style={{ color: 'var(--info-dark)' }} />
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>NGO / Shelter</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>NGO / Shelter</span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Community Kitchen</span>
                 </label>
 
@@ -214,179 +174,110 @@ export default function AuthRegisterPage() {
                     style={{ display: 'none' }}
                   />
                   <Truck size={22} style={{ color: 'var(--accent-dark)' }} />
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Volunteer</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Volunteer</span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Courier / Driver</span>
-                </label>
-
-                <label
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '0.85rem 0.5rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: `2px solid ${role === 'ADMIN' ? '#7E22CE' : 'var(--border)'}`,
-                    background: role === 'ADMIN' ? '#F3E8FF' : 'white',
-                    cursor: 'pointer',
-                    textAlign: 'center'
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="role"
-                    value="ADMIN"
-                    checked={role === 'ADMIN'}
-                    onChange={() => setRole('ADMIN')}
-                    style={{ display: 'none' }}
-                  />
-                  <ShieldCheck size={22} style={{ color: '#7E22CE' }} />
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#6B21A8' }}>Platform Admin</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Passcode Required</span>
                 </label>
               </div>
             </div>
 
-            {/* Google Quick Sign-Up */}
-            <div style={{ marginBottom: '1.25rem' }}>
-              <GoogleAuthButton
-                mode="register"
-                selectedRole={role}
-                adminSecret={adminSecret}
-                onSuccess={handleGoogleAuth}
-                onError={(msg) => showToast(msg, 'danger')}
-                disabled={submitting}
+            {/* Basic Info */}
+            <div className="form-group">
+              <label className="form-label">
+                {role === 'DONOR' ? 'Kitchen / Business Name *' : role === 'NGO' ? 'NGO / Shelter Name *' : 'Full Name *'}
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder={role === 'DONOR' ? 'e.g. Royal Greens Banquet' : role === 'NGO' ? 'e.g. Seva Hunger Relief Trust' : 'e.g. Amit Verma'}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', margin: '1.25rem 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-              <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-              <span style={{ padding: '0 0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
-                Or complete with details
-              </span>
-              <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+            <div className="grid-responsive-2col">
+              <div className="form-group">
+                <label className="form-label">Email Address *</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="contact@org.org"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Mobile Number *</label>
+                <input
+                  type="tel"
+                  className="form-input"
+                  placeholder="+91 98111 22334"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                />
+              </div>
             </div>
 
-            <form onSubmit={handleStep1Submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* Basic Info */}
+            <div className="form-group">
+              <label className="form-label">Primary Address / Area *</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Street address, Colony, City"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                required
+              />
+            </div>
+
+            {role === 'NGO' && (
               <div className="form-group">
-                <label className="form-label">
-                  {role === 'DONOR' ? 'Kitchen / Business Name *' : role === 'NGO' ? 'NGO / Shelter Name *' : role === 'ADMIN' ? 'Administrator Name *' : 'Full Name *'}
-                </label>
+                <label className="form-label">NGO Darpan Registration / 80G Number *</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder={role === 'DONOR' ? 'e.g. Royal Greens Banquet' : role === 'NGO' ? 'e.g. Seva Hunger Relief Trust' : role === 'ADMIN' ? 'e.g. System Administrator' : 'e.g. Amit Verma'}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. DL/2023/0481921"
+                  value={regNumber}
+                  onChange={(e) => setRegNumber(e.target.value)}
                   required
                 />
+                <span className="form-hint">Used for compliance verification by platform operators.</span>
               </div>
+            )}
 
-              <div className="grid-responsive-2col">
-                <div className="form-group">
-                  <label className="form-label">Email Address *</label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    placeholder="contact@org.org"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Mobile Number *</label>
-                  <input
-                    type="tel"
-                    className="form-input"
-                    placeholder="+91 98111 22334"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
+            {role === 'DONOR' && (
               <div className="form-group">
-                <label className="form-label">Primary Address / Area *</label>
+                <label className="form-label">FSSAI License / Registration No (Optional)</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="Street address, Colony, City"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  required
+                  placeholder="e.g. 10019011000542"
+                  value={regNumber}
+                  onChange={(e) => setRegNumber(e.target.value)}
                 />
               </div>
+            )}
 
-              {role === 'NGO' && (
-                <div className="form-group">
-                  <label className="form-label">NGO Darpan Registration / 80G Number *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. DL/2023/0481921"
-                    value={regNumber}
-                    onChange={(e) => setRegNumber(e.target.value)}
-                    required
-                  />
-                  <span className="form-hint">Used for compliance verification by platform operators.</span>
-                </div>
-              )}
+            <div className="form-group">
+              <label className="form-label">Create Password *</label>
+              <input
+                type="password"
+                className="form-input"
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
 
-              {role === 'DONOR' && (
-                <div className="form-group">
-                  <label className="form-label">FSSAI License / Registration No (Optional)</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. 10019011000542"
-                    value={regNumber}
-                    onChange={(e) => setRegNumber(e.target.value)}
-                  />
-                </div>
-              )}
-
-              {role === 'ADMIN' && (
-                <div className="form-group" style={{ background: '#FAF5FF', border: '1.5px solid #D8B4FE', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-                  <label className="form-label" style={{ color: '#6B21A8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Lock size={16} /> Admin Security Passcode *
-                  </label>
-                  <input
-                    type="password"
-                    className="form-input"
-                    placeholder="Enter platform admin registration passcode"
-                    value={adminSecret}
-                    onChange={(e) => setAdminSecret(e.target.value)}
-                    required
-                    style={{ borderColor: '#C084FC' }}
-                  />
-                  <span className="form-hint" style={{ color: '#7E22CE' }}>
-                    Security verification required for administrator privileges. Default passcode: <code>FOODRESCUE_ADMIN_2025</code>
-                  </span>
-                </div>
-              )}
-
-              <div className="form-group">
-                <label className="form-label">Create Password *</label>
-                <input
-                  type="password"
-                  className="form-input"
-                  placeholder="At least 6 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
-                <span>Continue to Contact Verification</span>
-                <ArrowRight size={16} />
-              </button>
-            </form>
-          </div>
+            <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
+              <span>Continue to Contact Verification</span>
+              <ArrowRight size={16} />
+            </button>
+          </form>
         ) : (
           /* Step 2: OTP Verification */
           <form onSubmit={handleOtpVerify} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -425,12 +316,11 @@ export default function AuthRegisterPage() {
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => setStep(1)}
-                disabled={submitting}
               >
                 Back
               </button>
-              <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
-                {submitting ? 'Activating Account...' : 'Verify & Activate Account'}
+              <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                Verify & Activate Account
               </button>
             </div>
           </form>

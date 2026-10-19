@@ -36,13 +36,6 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/google")
-    @Operation(summary = "Authenticate or register user using Google Identity Services")
-    public ResponseEntity<AuthResponse> googleAuth(@Valid @RequestBody GoogleAuthRequest request) {
-        AuthResponse response = authService.googleAuth(request);
-        return ResponseEntity.ok(response);
-    }
-
     @PostMapping("/verify-otp")
     @Operation(summary = "Verify email or phone OTP before first login (FR-AUTH-02)")
     public ResponseEntity<Map<String, Object>> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {

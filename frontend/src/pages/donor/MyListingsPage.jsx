@@ -28,8 +28,8 @@ export default function MyListingsPage() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
-        (item.title || '').toLowerCase().includes(q) ||
-        (item.category || '').toLowerCase().includes(q)
+        item.title.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q)
       );
     }
     return true;

@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Lock } from 'lucide-react';
-import GoogleAuthButton from '../components/GoogleAuthButton';
+import { storageService } from '../lib/storageService';
 
 export default function AuthLoginPage() {
-  const { login, googleAuth, showToast } = useApp();
+  const { login, showToast } = useApp();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -13,27 +13,6 @@ export default function AuthLoginPage() {
   const [loading, setLoading] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
-
-  const handleAuthSuccess = (user) => {
-    showToast(`Welcome back, ${user.name}!`, 'success');
-    if (user.role === 'DONOR') navigate('/donor/dashboard');
-    else if (user.role === 'NGO') navigate('/ngo/discover');
-    else if (user.role === 'VOLUNTEER') navigate('/volunteer/tasks');
-    else if (user.role === 'ADMIN') navigate('/admin/overview');
-    else navigate('/');
-  };
-
-  const handleGoogleAuth = async (googleData) => {
-    setLoading(true);
-    const result = await googleAuth(googleData);
-    setLoading(false);
-
-    if (result.success) {
-      handleAuthSuccess(result.user);
-    } else {
-      showToast(result.error || 'Google authentication failed', 'danger');
-    }
-  };
 
   const handleStandardSubmit = async (e) => {
     e.preventDefault();
@@ -48,8 +27,14 @@ export default function AuthLoginPage() {
     setLoading(false);
 
     if (result.success) {
+      const match = result.user;
       setFailedAttempts(0);
-      handleAuthSuccess(result.user);
+      showToast(`Welcome back, ${match.name}!`, 'success');
+      if (match.role === 'DONOR') navigate('/donor/dashboard');
+      else if (match.role === 'NGO') navigate('/ngo/discover');
+      else if (match.role === 'VOLUNTEER') navigate('/volunteer/tasks');
+      else if (match.role === 'ADMIN') navigate('/admin/overview');
+      else navigate('/');
     } else {
       const attempts = failedAttempts + 1;
       setFailedAttempts(attempts);
@@ -81,24 +66,6 @@ export default function AuthLoginPage() {
             🔒 <b>Account Locked:</b> Too many failed attempts. Please contact support or wait 15 minutes.
           </div>
         )}
-
-        {/* Google Sign In */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <GoogleAuthButton
-            mode="login"
-            onSuccess={handleGoogleAuth}
-            onError={(msg) => showToast(msg, 'danger')}
-            disabled={isLocked || loading}
-          />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', margin: '1.25rem 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-          <span style={{ padding: '0 0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
-            Or sign in with email
-          </span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-        </div>
 
         <form onSubmit={handleStandardSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div className="form-group">

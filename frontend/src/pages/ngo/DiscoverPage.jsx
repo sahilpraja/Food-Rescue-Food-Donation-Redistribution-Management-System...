@@ -56,8 +56,8 @@ export default function DiscoverPage() {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
-          (item.title || '').toLowerCase().includes(q) ||
-          (item.donorName || '').toLowerCase().includes(q)
+          item.title.toLowerCase().includes(q) ||
+          item.donorName.toLowerCase().includes(q)
         );
       }
 

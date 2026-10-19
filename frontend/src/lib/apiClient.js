@@ -66,17 +66,6 @@ class ApiClient {
     return res;
   }
 
-  async googleAuth(data) {
-    const res = await this.request('/auth/google', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-    if (res && res.accessToken) {
-      this.setToken(res.accessToken);
-    }
-    return res;
-  }
-
   // Listings endpoints
   async getAllListings(params = {}) {
     const query = new URLSearchParams(params).toString();

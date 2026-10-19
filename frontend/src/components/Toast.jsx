@@ -12,7 +12,6 @@ export default function Toast() {
       case 'success':
         return <CheckCircle2 size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />;
       case 'danger':
-      case 'error':
         return <AlertCircle size={20} style={{ color: 'var(--danger)', flexShrink: 0 }} />;
       default:
         return <Info size={20} style={{ color: 'var(--info)', flexShrink: 0 }} />;
@@ -24,7 +23,6 @@ export default function Toast() {
       case 'success':
         return 'var(--primary)';
       case 'danger':
-      case 'error':
         return 'var(--danger)';
       default:
         return 'var(--info)';

@@ -30,7 +30,6 @@ public class AuthDtos {
         private String city;
         private String darpanRegNo;
         private String fssaiLicense;
-        private String adminSecret;
 
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
@@ -50,8 +49,6 @@ public class AuthDtos {
         public void setDarpanRegNo(String darpanRegNo) { this.darpanRegNo = darpanRegNo; }
         public String getFssaiLicense() { return fssaiLicense; }
         public void setFssaiLicense(String fssaiLicense) { this.fssaiLicense = fssaiLicense; }
-        public String getAdminSecret() { return adminSecret; }
-        public void setAdminSecret(String adminSecret) { this.adminSecret = adminSecret; }
     }
 
     public static class LoginRequest {
@@ -110,37 +107,5 @@ public class AuthDtos {
         public String getEmail() { return email; }
         public Role getRole() { return role; }
         public boolean isVerified() { return verified; }
-    }
-
-    public static class GoogleAuthRequest {
-        private String idToken;
-
-        @NotBlank(message = "Email is required")
-        @Email(message = "Invalid email format")
-        private String email;
-
-        private String name;
-        private Role role; // Optional, defaults to DONOR if new user
-        private String picture;
-        private String city;
-        private String phone;
-        private String adminSecret;
-
-        public String getIdToken() { return idToken; }
-        public void setIdToken(String idToken) { this.idToken = idToken; }
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        public Role getRole() { return role; }
-        public void setRole(Role role) { this.role = role; }
-        public String getPicture() { return picture; }
-        public void setPicture(String picture) { this.picture = picture; }
-        public String getCity() { return city; }
-        public void setCity(String city) { this.city = city; }
-        public String getPhone() { return phone; }
-        public void setPhone(String phone) { this.phone = phone; }
-        public String getAdminSecret() { return adminSecret; }
-        public void setAdminSecret(String adminSecret) { this.adminSecret = adminSecret; }
     }
 }

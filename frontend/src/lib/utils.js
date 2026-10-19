@@ -139,16 +139,3 @@ export const DIET_TYPES = [
   { id: 'NON_VEG', label: 'Non-Vegetarian 🔴', icon: 'nonveg' },
   { id: 'VEGAN', label: 'Pure Vegan 🌱', icon: 'vegan' }
 ];
-
-// Formats a Date object or timestamp into YYYY-MM-DDTHH:mm string in local timezone for <input type="datetime-local">
-export function formatForDateTimeInput(d = new Date()) {
-  const date = d instanceof Date ? d : new Date(d);
-  if (isNaN(date.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  const y = date.getFullYear();
-  const m = pad(date.getMonth() + 1);
-  const day = pad(date.getDate());
-  const h = pad(date.getHours());
-  const min = pad(date.getMinutes());
-  return `${y}-${m}-${day}T${h}:${min}`;
-}

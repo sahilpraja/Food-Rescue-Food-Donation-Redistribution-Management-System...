@@ -12,7 +12,7 @@ import {
   AlertCircle,
   Copy
 } from 'lucide-react';
-import { CATEGORIES, DIET_TYPES, formatForDateTimeInput } from '../../lib/utils';
+import { CATEGORIES, DIET_TYPES } from '../../lib/utils';
 
 export default function CreateListingPage() {
   const { currentUser, createListing, listings } = useApp();
@@ -22,10 +22,10 @@ export default function CreateListingPage() {
   const PRESET_HOURS = [2, 4, 6, 8];
   const ALLERGEN_OPTIONS = ['Dairy', 'Gluten', 'Nuts / Peanuts', 'Soy', 'Eggs', 'Mustard'];
 
-  const defaultPreparedAt = formatForDateTimeInput(new Date());
-  const defaultBestBefore = formatForDateTimeInput(new Date(Date.now() + 4 * 60 * 60 * 1000));
-  const defaultPickupFrom = formatForDateTimeInput(new Date());
-  const defaultPickupTo = formatForDateTimeInput(new Date(Date.now() + 2 * 60 * 60 * 1000));
+  const defaultPreparedAt = new Date().toISOString().slice(0, 16);
+  const defaultBestBefore = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString().slice(0, 16);
+  const defaultPickupFrom = new Date().toISOString().slice(0, 16);
+  const defaultPickupTo = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16);
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Cooked Meals');
@@ -46,10 +46,10 @@ export default function CreateListingPage() {
 
   // Preset quick button for best before
   const handleQuickPreset = (hours) => {
-    const target = formatForDateTimeInput(new Date(Date.now() + hours * 60 * 60 * 1000));
+    const target = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString().slice(0, 16);
     setBestBefore(target);
     // Adjust pickupTo to be slightly before bestBefore
-    const pickupTarget = formatForDateTimeInput(new Date(Date.now() + (hours - 0.5) * 60 * 60 * 1000));
+    const pickupTarget = new Date(Date.now() + (hours - 0.5) * 60 * 60 * 1000).toISOString().slice(0, 16);
     setPickupTo(pickupTarget);
   };
 
