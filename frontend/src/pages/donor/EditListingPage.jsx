@@ -10,7 +10,7 @@ import {
   Save,
   Trash2
 } from 'lucide-react';
-import { CATEGORIES, DIET_TYPES } from '../../lib/utils';
+import { CATEGORIES, DIET_TYPES, formatForDateTimeInput } from '../../lib/utils';
 
 export default function EditListingPage() {
   const { id } = useParams();
@@ -45,10 +45,10 @@ export default function EditListingPage() {
       setQuantity(listing.quantity || 10);
       setUnit(listing.unit || 'portions');
       setPackaging(listing.packaging || '');
-      setPreparedAt(listing.preparedAt ? new Date(listing.preparedAt).toISOString().slice(0, 16) : '');
-      setBestBefore(listing.bestBefore ? new Date(listing.bestBefore).toISOString().slice(0, 16) : '');
-      setPickupFrom(listing.pickupFrom ? new Date(listing.pickupFrom).toISOString().slice(0, 16) : '');
-      setPickupTo(listing.pickupTo ? new Date(listing.pickupTo).toISOString().slice(0, 16) : '');
+      setPreparedAt(listing.preparedAt ? formatForDateTimeInput(listing.preparedAt) : '');
+      setBestBefore(listing.bestBefore ? formatForDateTimeInput(listing.bestBefore) : '');
+      setPickupFrom(listing.pickupFrom ? formatForDateTimeInput(listing.pickupFrom) : '');
+      setPickupTo(listing.pickupTo ? formatForDateTimeInput(listing.pickupTo) : '');
       setAllergens(Array.isArray(listing.allergens) ? listing.allergens : []);
       setNotes(listing.notes || '');
       setPhotoUrl(listing.photos?.[0] || '');

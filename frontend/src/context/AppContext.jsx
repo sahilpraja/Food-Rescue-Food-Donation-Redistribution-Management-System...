@@ -11,6 +11,7 @@ const DEFAULT_ADMIN_CREDENTIALS = {
 
 export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => storageService.getCurrentUser());
+  const [users, setUsers] = useState(() => storageService.getUsers());
   const [listings, setListings] = useState(() => storageService.getListings());
   const [notifications, setNotifications] = useState(() => storageService.getNotifications(currentUser?.id));
   const [settings, setSettings] = useState(() => storageService.getSettings());
@@ -34,6 +35,7 @@ export function AppProvider({ children }) {
   const refreshLocalState = useCallback(() => {
     const user = storageService.getCurrentUser();
     setCurrentUser(user);
+    setUsers(storageService.getUsers());
     setListings(storageService.getListings());
     setNotifications(storageService.getNotifications(user?.id));
     setSettings(storageService.getSettings());
@@ -207,6 +209,146 @@ export function AppProvider({ children }) {
     return { success: false, error: 'Invalid email or password.' };
   }, [syncFromBackend]);
 
+  const register = useCallback(async (data) => {
+    try {
+      let backendUser = null;
+      try {
+        const res = await apiClient.register(data);
+        if (res && res.accessToken) {
+          setIsBackendConnected(true);
+          backendUser = {
+            id: res.userId ? String(res.userId) : `usr_${Date.now()}`,
+            name: res.name || data.name,
+            email: res.email || data.email,
+            phone: data.phone,
+            role: res.role || data.role,
+            type: (res.role || data.role) === 'DONOR' ? 'Food Donor' : (res.role || data.role) === 'NGO' ? 'NGO Shelter' : (res.role || data.role) === 'ADMIN' ? 'Platform Administrator' : 'Volunteer Courier',
+            verified: res.verified !== undefined ? res.verified : (data.role !== 'NGO'),
+            verificationStatus: (res.verified || data.role !== 'NGO') ? 'APPROVED' : 'PENDING',
+            city: data.city || 'New Delhi',
+            address: data.addressLine || data.address || '',
+            darpanRegNo: data.darpanRegNo,
+            fssaiLicense: data.fssaiLicense,
+            rating: 5.0,
+            ratingCount: 0
+          };
+        }
+      } catch (apiErr) {
+        console.warn('[AppContext] Backend register fallback:', apiErr.message);
+        if (apiErr.message && (apiErr.message.includes('already exists') || apiErr.message.includes('exists') || apiErr.message.includes('Passcode') || apiErr.message.includes('Secret'))) {
+          throw apiErr;
+        }
+      }
+
+      const role = data.role;
+      const needsAdminApproval = role === 'NGO';
+      const userToSave = backendUser || {
+        id: `usr_${Date.now()}`,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        role: data.role,
+        type: role === 'DONOR' ? 'Food Donor' : role === 'NGO' ? 'NGO Shelter' : role === 'ADMIN' ? 'Platform Administrator' : 'Volunteer Courier',
+        verified: !needsAdminApproval,
+        verificationStatus: needsAdminApproval ? 'PENDING' : 'APPROVED',
+        city: data.city || 'New Delhi',
+        address: data.addressLine || data.address || '',
+        darpanRegNo: data.darpanRegNo,
+        fssaiLicense: data.fssaiLicense,
+        rating: 5.0,
+        ratingCount: 0
+      };
+
+      const currentUsers = storageService.getUsers();
+      const existingIdx = currentUsers.findIndex(u => u.email.toLowerCase() === userToSave.email.toLowerCase());
+      if (existingIdx >= 0) {
+        currentUsers[existingIdx] = { ...currentUsers[existingIdx], ...userToSave };
+      } else {
+        currentUsers.push(userToSave);
+      }
+      localStorage.setItem('foodrescue_users_v1', JSON.stringify(currentUsers));
+
+      storageService.setCurrentUser(userToSave);
+      setCurrentUser(userToSave);
+      setUsers(currentUsers);
+      await syncFromBackend(userToSave);
+      return { success: true, user: userToSave };
+    } catch (err) {
+      return { success: false, error: err.message || 'Registration failed.' };
+    }
+  }, [syncFromBackend]);
+
+  const googleAuth = useCallback(async ({ email, name, role, picture, idToken, adminSecret, phone }) => {
+    try {
+      let loggedInUser = null;
+      try {
+        const res = await apiClient.googleAuth({
+          idToken,
+          email: email.trim(),
+          name,
+          role,
+          picture,
+          adminSecret,
+          phone
+        });
+        if (res && res.accessToken) {
+          setIsBackendConnected(true);
+          loggedInUser = {
+            id: res.userId ? String(res.userId) : `usr_${Date.now()}`,
+            name: res.name || name || email.split('@')[0],
+            email: res.email || email,
+            role: res.role,
+            avatar: picture,
+            type: res.role === 'DONOR' ? 'Food Donor' : res.role === 'NGO' ? 'NGO Shelter' : res.role === 'ADMIN' ? 'Platform Administrator' : 'Volunteer Courier',
+            verified: res.verified !== undefined ? res.verified : true,
+            verificationStatus: res.verified ? 'APPROVED' : 'PENDING'
+          };
+        }
+      } catch (apiErr) {
+        console.warn('[AppContext] Spring Boot googleAuth fallback:', apiErr.message);
+        if (apiErr.message && (apiErr.message.includes('Passcode') || apiErr.message.includes('Secret'))) {
+          throw apiErr;
+        }
+      }
+
+      if (!loggedInUser) {
+        const currentUsers = storageService.getUsers();
+        let existing = currentUsers.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
+        if (existing) {
+          loggedInUser = existing;
+          if (picture && !loggedInUser.avatar) loggedInUser.avatar = picture;
+        } else {
+          const userRole = role || 'DONOR';
+          const needsApproval = userRole === 'NGO';
+          loggedInUser = {
+            id: `usr_${Date.now()}`,
+            name: name || email.split('@')[0],
+            email: email.trim(),
+            phone: phone || '+91 98000 00000',
+            role: userRole,
+            avatar: picture,
+            type: userRole === 'DONOR' ? 'Food Donor' : userRole === 'NGO' ? 'NGO Shelter' : userRole === 'ADMIN' ? 'Platform Administrator' : 'Volunteer Courier',
+            verified: !needsApproval,
+            verificationStatus: needsApproval ? 'PENDING' : 'APPROVED',
+            city: 'New Delhi',
+            rating: 5.0,
+            ratingCount: 0
+          };
+          currentUsers.push(loggedInUser);
+          localStorage.setItem('foodrescue_users_v1', JSON.stringify(currentUsers));
+        }
+      }
+
+      storageService.setCurrentUser(loggedInUser);
+      setCurrentUser(loggedInUser);
+      setUsers(storageService.getUsers());
+      await syncFromBackend(loggedInUser);
+      return { success: true, user: loggedInUser };
+    } catch (err) {
+      return { success: false, error: err.message || 'Google authentication failed.' };
+    }
+  }, [syncFromBackend]);
+
   const switchRole = useCallback(async (role) => {
     storageService.switchRole(role);
     const user = storageService.getCurrentUser();
@@ -224,6 +366,10 @@ export function AppProvider({ children }) {
       setCurrentUser(u);
     },
     login,
+    register,
+    googleAuth,
+    refreshState: refreshLocalState,
+    refreshLocalState,
     logout: () => {
       apiClient.setToken(null);
       storageService.logout();
@@ -231,8 +377,8 @@ export function AppProvider({ children }) {
       showToast('Logged out successfully.', 'info');
     },
     switchRole,
-    users: storageService.getUsers(),
-    demoUsers: storageService.getUsers(),
+    users,
+    demoUsers: users,
     listings,
     notifications,
     unreadNotifCount,
