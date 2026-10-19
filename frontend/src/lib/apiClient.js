@@ -227,6 +227,13 @@ class ApiClient {
     return this.request(`/users/${id}`);
   }
 
+  async changePassword(currentPassword, newPassword) {
+    return this.request('/users/me/password', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+  }
+
   // Admin endpoints
   async getAdminVerifications() {
     return this.request('/admin/verifications');

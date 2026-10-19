@@ -1,5 +1,6 @@
 package com.foodrescue.user.controller;
 
+import com.foodrescue.common.exception.BadRequestException;
 import com.foodrescue.common.security.UserPrincipal;
 import com.foodrescue.user.entity.User;
 import com.foodrescue.user.repository.UserRepository;
@@ -7,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -17,9 +19,11 @@ import java.util.Map;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping("/me")
@@ -81,5 +85,34 @@ public class UserController {
 
         User saved = userRepository.save(user);
         return ResponseEntity.ok(saved);
+    }
+
+    @PutMapping("/me/password")
+    @Operation(summary = "Change or reset current user password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody Map<String, String> body) {
+
+        String currentPassword = body.get("currentPassword");
+        String newPassword = body.get("newPassword");
+
+        if (newPassword == null || newPassword.trim().length() < 6) {
+            throw new BadRequestException("New password must be at least 6 characters long.");
+        }
+
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new BadRequestException("User account not found."));
+
+        // If currentPassword is provided, verify it
+        if (currentPassword != null && !currentPassword.isBlank()) {
+            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                throw new BadRequestException("Current password does not match.");
+            }
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword.trim()));
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully."));
     }
 }

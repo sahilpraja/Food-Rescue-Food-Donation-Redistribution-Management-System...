@@ -12,17 +12,32 @@ import {
   LogOut,
   CheckCircle2,
   AlertCircle,
-  Save
+  Save,
+  Lock,
+  KeyRound,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { currentUser, logout, showToast, setCurrentUser, updateProfile } = useApp();
+  const { currentUser, logout, showToast, setCurrentUser, updateProfile, changePassword } = useApp();
   const navigate = useNavigate();
 
   const [name, setName] = useState(currentUser?.name || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
   const [address, setAddress] = useState(currentUser?.address || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [isChangingPw, setIsChangingPw] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState('');
+  const [pwError, setPwError] = useState('');
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -48,6 +63,41 @@ export default function ProfilePage() {
       showToast(err.message || 'Failed to update profile', 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPwError('');
+    setPwSuccess('');
+
+    if (newPassword.length < 6) {
+      setPwError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPwError('New password and confirm password do not match.');
+      return;
+    }
+
+    setIsChangingPw(true);
+    try {
+      if (changePassword) {
+        const res = await changePassword(currentPassword, newPassword);
+        if (res && res.success === false) {
+          setPwError(res.error || 'Failed to update password.');
+          return;
+        }
+      }
+      setPwSuccess('Password has been successfully updated.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPwError(err.message || 'Failed to update password.');
+    } finally {
+      setIsChangingPw(false);
     }
   };
 
@@ -165,6 +215,180 @@ export default function ProfilePage() {
             <button type="submit" className="btn btn-primary btn-sm" style={{ gap: '6px' }} disabled={isSubmitting}>
               <Save size={16} />
               <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Security & Password Reset Section */}
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '10px',
+            background: 'rgba(22, 163, 74, 0.1)',
+            color: 'var(--primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <KeyRound size={22} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
+              Security & Password Reset
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '2px 0 0' }}>
+              Update your account password or set a new security credential.
+            </p>
+          </div>
+        </div>
+
+        {pwSuccess && (
+          <div style={{
+            padding: '0.875rem 1rem',
+            background: '#ECFDF5',
+            border: '1px solid #A7F3D0',
+            borderRadius: 'var(--radius-md, 8px)',
+            color: '#065F46',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.875rem'
+          }}>
+            <CheckCircle2 size={18} />
+            <span>{pwSuccess}</span>
+          </div>
+        )}
+
+        {pwError && (
+          <div style={{
+            padding: '0.875rem 1rem',
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: 'var(--radius-md, 8px)',
+            color: '#991B1B',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.875rem'
+          }}>
+            <AlertCircle size={18} />
+            <span>{pwError}</span>
+          </div>
+        )}
+
+        <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="form-group">
+            <label className="form-label">Current Password</label>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showCurrentPw ? 'text' : 'password'}
+                className="form-input"
+                placeholder="Enter current password (if set)"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                style={{ paddingRight: '2.5rem' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPw(!showCurrentPw)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: 0
+                }}
+                tabIndex={-1}
+              >
+                {showCurrentPw ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid-responsive-2col">
+            <div className="form-group">
+              <label className="form-label">New Password</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type={showNewPw ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="At least 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{ paddingRight: '2.5rem' }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPw(!showNewPw)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0
+                  }}
+                  tabIndex={-1}
+                >
+                  {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Confirm New Password</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type={showConfirmPw ? 'text' : 'password'}
+                  className="form-input"
+                  placeholder="Repeat new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  style={{ paddingRight: '2.5rem' }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPw(!showConfirmPw)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0
+                  }}
+                  tabIndex={-1}
+                >
+                  {showConfirmPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            <button
+              type="submit"
+              className="btn btn-primary btn-sm"
+              style={{ gap: '6px' }}
+              disabled={isChangingPw}
+            >
+              <Lock size={16} />
+              <span>{isChangingPw ? 'Updating Password...' : 'Reset / Change Password'}</span>
             </button>
           </div>
         </form>

@@ -304,6 +304,33 @@ export function AppProvider({ children }) {
     }
   }, [refreshLocalState]);
 
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    try {
+      const res = await apiClient.changePassword(currentPassword, newPassword);
+      const currentUsers = storageService.getUsers();
+      const current = storageService.getCurrentUser();
+      const idx = currentUsers.findIndex(u => u.id === current?.id || u.email?.toLowerCase() === current?.email?.toLowerCase());
+      if (idx >= 0) {
+        currentUsers[idx].password = newPassword;
+        localStorage.setItem('foodrescue_users_v1', JSON.stringify(currentUsers));
+      }
+      showToast('Password changed successfully.', 'success');
+      return { success: true, message: res?.message || 'Password changed successfully.' };
+    } catch (err) {
+      const current = storageService.getCurrentUser();
+      const currentUsers = storageService.getUsers();
+      const idx = currentUsers.findIndex(u => u.id === current?.id || u.email?.toLowerCase() === current?.email?.toLowerCase());
+      if (idx >= 0 && (!currentPassword || currentUsers[idx].password === currentPassword)) {
+        currentUsers[idx].password = newPassword;
+        localStorage.setItem('foodrescue_users_v1', JSON.stringify(currentUsers));
+        showToast('Password changed successfully.', 'success');
+        return { success: true, message: 'Password changed successfully.' };
+      }
+      showToast(err.message || 'Failed to change password.', 'danger');
+      return { success: false, error: err.message || 'Failed to change password.' };
+    }
+  }, [showToast]);
+
   const switchRole = useCallback(async (role) => {
     storageService.switchRole(role);
     const user = storageService.getCurrentUser();
@@ -323,6 +350,7 @@ export function AppProvider({ children }) {
     login,
     forgotPassword,
     resetPassword,
+    changePassword,
     registerAdmin,
     logout: () => {
       apiClient.setToken(null);
