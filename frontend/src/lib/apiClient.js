@@ -1,11 +1,20 @@
 // apiClient.js - REST API connector for Spring Boot Backend (/api/v1)
 // With automatic graceful fallback to storageService when offline or in standalone demo mode
 
-const BACKEND_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+const isBrowser = typeof window !== 'undefined';
+const isLocalhost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+// Only point to localhost:8080 when running locally; on deployed sites without VITE_API_URL, operate in standalone mode
+const BACKEND_BASE_URL = import.meta.env.VITE_API_URL 
+  || (isLocalhost ? 'http://localhost:8080/api/v1' : '');
 
 class ApiClient {
   constructor() {
     this.token = localStorage.getItem('foodrescue_jwt_token') || null;
+  }
+
+  isAvailable() {
+    return Boolean(BACKEND_BASE_URL);
   }
 
   setToken(token) {
@@ -22,6 +31,9 @@ class ApiClient {
   }
 
   async request(endpoint, options = {}) {
+    if (!BACKEND_BASE_URL) {
+      throw new Error('BACKEND_UNAVAILABLE');
+    }
     const url = `${BACKEND_BASE_URL}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
